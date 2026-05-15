@@ -3,6 +3,8 @@
   "version": "1.0.0",
   "description": "File transfer via QR codes — no network needed",
   "scripts": {
+    "build": "node scripts/build.js",
+    "dev":   "node scripts/dev.js",
     "start": "node server.js"
   },
   "dependencies": {

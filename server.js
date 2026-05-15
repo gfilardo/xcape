@@ -5,6 +5,7 @@ const os     = require('os');
 const qrterm = require('qrcode-terminal');
 
 const PORT      = process.env.PORT || 8443;
+const DIST      = path.join(__dirname, 'dist');
 const CERT_DIR  = path.join(__dirname, '.certs');
 const CERT_FILE = path.join(CERT_DIR, 'cert.pem');
 const KEY_FILE  = path.join(CERT_DIR, 'key.pem');
@@ -34,14 +35,19 @@ const MIME = {
 };
 
 async function start() {
+  if (!fs.existsSync(path.join(DIST, 'index.html'))) {
+    console.error('dist/ not found — run `npm run build` first');
+    process.exit(1);
+  }
+
   const { cert, key } = await getCert();
 
   const server = https.createServer({ cert, key }, (req, res) => {
     const url    = req.url === '/' ? '/index.html' : req.url;
     const rel    = path.normalize(url).replace(/^(\.\.[/\\])+/, '');
-    const target = path.join(__dirname, rel);
+    const target = path.join(DIST, rel);
 
-    if (!target.startsWith(__dirname + path.sep) && target !== __dirname) {
+    if (!target.startsWith(DIST + path.sep) && target !== DIST) {
       res.writeHead(403);
       res.end('Forbidden');
       return;
