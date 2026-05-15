@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>xcape</title>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsqr/dist/jsQR.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f0f0f;
+      --surface: #1a1a1a;
+      --border: #2e2e2e;
+      --accent: #5b8dee;
+      --accent-dim: #2a3f6e;
+      --text: #e8e8e8;
+      --text-dim: #777;
+      --green: #4caf7d;
+      --red: #e05252;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem;
+    }
+
+    h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: var(--accent);
+      margin-bottom: 0.25rem;
+    }
+
+    .tagline {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      margin-bottom: 2rem;
+      letter-spacing: 0.05em;
+    }
+
+    .toggle {
+      display: flex;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 2rem;
+    }
+
+    .toggle button {
+      flex: 1;
+      padding: 0.6rem 2rem;
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      font-size: 0.95rem;
+      font-weight: 500;
+      transition: all 0.15s;
+    }
+
+    .toggle button.active {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .panel {
+      width: 100%;
+      max-width: 500px;
+      display: none;
+    }
+
+    .panel.active { display: block; }
+
+    /* ── SEND ── */
+    #drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: 12px;
+      padding: 3rem 2rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    #drop-zone.dragover {
+      border-color: var(--accent);
+      background: var(--accent-dim);
+    }
+
+    #drop-zone .icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
+    #drop-zone p { color: var(--text-dim); font-size: 0.9rem; }
+    #drop-zone strong { color: var(--text); }
+    #file-input { display: none; }
+
+    #send-ui { display: none; margin-top: 1.5rem; }
+
+    .file-info {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      margin-bottom: 1.25rem;
+      font-size: 0.85rem;
+      color: var(--text-dim);
+    }
+
+    .file-info strong { color: var(--text); }
+
+    #qr-canvas-wrap {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 1.25rem;
+    }
+
+    #qr-canvas {
+      border-radius: 8px;
+      background: #fff;
+      padding: 12px;
+    }
+
+    .chunk-label {
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--text-dim);
+      margin-bottom: 1rem;
+    }
+
+    .chunk-label span { color: var(--text); font-weight: 600; }
+
+    .progress-bar-wrap {
+      background: var(--border);
+      border-radius: 99px;
+      height: 6px;
+      margin-bottom: 1.25rem;
+      overflow: hidden;
+    }
+
+    .progress-bar {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 99px;
+      transition: width 0.2s;
+    }
+
+    .controls {
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+
+    .controls label { font-size: 0.8rem; color: var(--text-dim); white-space: nowrap; }
+
+    input[type=range] {
+      flex: 1;
+      accent-color: var(--accent);
+    }
+
+    .speed-val { font-size: 0.8rem; color: var(--text); width: 3rem; text-align: right; }
+
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 0.65rem;
+      border-radius: 8px;
+      border: none;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+      text-decoration: none;
+      transition: opacity 0.15s;
+    }
+
+    .btn:hover { opacity: 0.85; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-ghost { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+
+    /* ── RECEIVE ── */
+    #video-wrap {
+      position: relative;
+      border-radius: 12px;
+      overflow: hidden;
+      background: #000;
+      margin-bottom: 1.25rem;
+      aspect-ratio: 4/3;
+    }
+
+    #recv-video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    #scan-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .scan-box {
+      width: 55%;
+      aspect-ratio: 1;
+      border: 2px solid var(--accent);
+      border-radius: 6px;
+      box-shadow: 0 0 0 9999px rgba(0,0,0,0.35);
+      transition: border-color 0.1s;
+    }
+
+    .scan-box.flash {
+      border-color: var(--green);
+      box-shadow: 0 0 0 9999px rgba(0,0,0,0.35), 0 0 12px var(--green);
+    }
+
+    #recv-canvas { display: none; }
+
+    #recv-status {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1.25rem;
+      text-align: center;
+    }
+
+    #recv-status .status-line { font-size: 0.9rem; color: var(--text-dim); margin-bottom: 0.5rem; }
+    #recv-status .status-line strong { color: var(--text); }
+
+    #chunks-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 3px;
+      justify-content: center;
+      max-height: 60px;
+      overflow: hidden;
+    }
+
+    .chunk-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+      background: var(--border);
+    }
+
+    .chunk-dot.got { background: var(--green); }
+
+    #recv-done {
+      display: none;
+      background: var(--surface);
+      border: 1px solid var(--green);
+      border-radius: 8px;
+      padding: 1.5rem;
+      text-align: center;
+    }
+
+    #recv-done .done-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+    #recv-done p { font-size: 0.9rem; color: var(--text-dim); margin-bottom: 1rem; }
+
+    #start-camera-btn { margin-bottom: 0.75rem; }
+
+    .error-msg {
+      color: var(--red);
+      font-size: 0.82rem;
+      text-align: center;
+      margin-top: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>xcape</h1>
+  <p class="tagline">file transfer via QR codes · no network needed</p>
+
+  <div class="toggle">
+    <button id="btn-send" class="active" onclick="setMode('send')">Send</button>
+    <button id="btn-recv" onclick="setMode('recv')">Receive</button>
+  </div>
+
+  <!-- ── SEND PANEL ── -->
+  <div class="panel active" id="panel-send">
+    <div id="drop-zone">
+      <div class="icon">📂</div>
+      <p><strong>Drop a file here</strong></p>
+      <p>or click to browse</p>
+    </div>
+    <input type="file" id="file-input" />
+
+    <div id="send-ui">
+      <div class="file-info" id="file-info"></div>
+
+      <div id="qr-canvas-wrap">
+        <canvas id="qr-canvas" width="360" height="360"></canvas>
+      </div>
+
+      <p class="chunk-label">
+        Chunk <span id="chunk-current">1</span> of <span id="chunk-total">1</span>
+        &nbsp;·&nbsp; loop <span id="loop-count">1</span>
+      </p>
+
+      <div class="progress-bar-wrap">
+        <div class="progress-bar" id="send-progress" style="width:0%"></div>
+      </div>
+
+      <div class="controls">
+        <label for="speed-range">Speed</label>
+        <input type="range" id="speed-range" min="300" max="3000" step="100" value="1000" />
+        <span class="speed-val" id="speed-val">1.0s</span>
+      </div>
+
+      <button class="btn btn-ghost" onclick="resetSend()">Choose another file</button>
+    </div>
+  </div>
+
+  <!-- ── RECEIVE PANEL ── -->
+  <div class="panel" id="panel-recv">
+    <button class="btn btn-primary" id="start-camera-btn" onclick="startCamera()">Start Camera</button>
+
+    <div id="video-wrap" style="display:none">
+      <video id="recv-video" playsinline autoplay muted></video>
+      <div id="scan-overlay"><div class="scan-box"></div></div>
+    </div>
+    <canvas id="recv-canvas"></canvas>
+
+    <div id="recv-status" style="display:none">
+      <p class="status-line" id="recv-status-text">Waiting for QR codes…</p>
+      <div id="chunks-grid"></div>
+    </div>
+
+    <div id="recv-done">
+      <div class="done-icon">✅</div>
+      <p id="recv-done-text"></p>
+      <a class="btn btn-primary" id="download-btn">Download file</a>
+      <br/><br/>
+      <button class="btn btn-ghost" onclick="resetRecv()">Receive another file</button>
+    </div>
+
+    <p class="error-msg" id="recv-error"></p>
+  </div>
+
+  <script>
+    // ── constants ──────────────────────────────────────────────────
+    const CHUNK_BYTES = 200; // raw bytes per chunk — smaller = simpler QR = more reliable scan
+
+    // ── mode toggle ────────────────────────────────────────────────
+    function setMode(mode) {
+      document.getElementById('panel-send').classList.toggle('active', mode === 'send');
+      document.getElementById('panel-recv').classList.toggle('active', mode === 'recv');
+      document.getElementById('btn-send').classList.toggle('active', mode === 'send');
+      document.getElementById('btn-recv').classList.toggle('active', mode === 'recv');
+      if (mode === 'send') stopCamera();
+    }
+
+    // ── SEND ───────────────────────────────────────────────────────
+    let chunks = [];
+    let chunkIndex = 0;
+    let loopCount = 1;
+    let sendTimer = null;
+    let intervalMs = 1000;
+
+    const dropZone   = document.getElementById('drop-zone');
+    const fileInput  = document.getElementById('file-input');
+    const sendUI     = document.getElementById('send-ui');
+    const qrCanvas   = document.getElementById('qr-canvas');
+    const fileInfoEl = document.getElementById('file-info');
+
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop', e => {
+      e.preventDefault();
+      dropZone.classList.remove('dragover');
+      const file = e.dataTransfer.files[0];
+      if (file) loadFile(file);
+    });
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files[0]) loadFile(fileInput.files[0]);
+    });
+
+    const speedRange = document.getElementById('speed-range');
+    speedRange.addEventListener('input', () => {
+      intervalMs = parseInt(speedRange.value);
+      document.getElementById('speed-val').textContent = (intervalMs / 1000).toFixed(1) + 's';
+      if (sendTimer) restartTimer();
+    });
+
+    async function loadFile(file) {
+      currentFileName = file.name;
+      const buffer = await file.arrayBuffer();
+      const bytes  = new Uint8Array(buffer);
+      chunks = [];
+
+      for (let i = 0; i < bytes.length; i += CHUNK_BYTES) {
+        const slice = bytes.slice(i, i + CHUNK_BYTES);
+        // btoa on large arrays: convert via reduce to avoid stack overflow
+        const b64 = btoa(slice.reduce((acc, b) => acc + String.fromCharCode(b), ''));
+        chunks.push(b64);
+      }
+      if (chunks.length === 0) chunks.push('');
+
+      const sizeStr = file.size < 1024
+        ? file.size + ' B'
+        : file.size < 1048576
+          ? (file.size / 1024).toFixed(1) + ' KB'
+          : (file.size / 1048576).toFixed(2) + ' MB';
+
+      fileInfoEl.innerHTML = `<strong>${escHtml(file.name)}</strong> &nbsp;·&nbsp; ${sizeStr} &nbsp;·&nbsp; ${chunks.length} chunks`;
+      document.getElementById('chunk-total').textContent = chunks.length;
+
+      chunkIndex = 0;
+      loopCount  = 1;
+      dropZone.style.display = 'none';
+      sendUI.style.display   = 'block';
+
+      showChunk(0);
+      restartTimer();
+    }
+
+    function showChunk(idx) {
+      const payload = JSON.stringify({ v: 1, i: idx, t: chunks.length, n: currentFileName, d: chunks[idx] });
+      QRCode.toCanvas(qrCanvas, payload, { width: 360, margin: 2, errorCorrectionLevel: 'M' }, err => {
+        if (err) console.error('QR error', err);
+      });
+      document.getElementById('chunk-current').textContent = idx + 1;
+      const pct = ((idx + 1) / chunks.length * 100).toFixed(0);
+      document.getElementById('send-progress').style.width = pct + '%';
+    }
+
+    // store filename across ticks
+    let currentFileName = '';
+
+    function restartTimer() {
+      if (sendTimer) clearInterval(sendTimer);
+      sendTimer = setInterval(advanceChunk, intervalMs);
+    }
+
+    function advanceChunk() {
+      chunkIndex = (chunkIndex + 1) % chunks.length;
+      if (chunkIndex === 0) {
+        loopCount++;
+        document.getElementById('loop-count').textContent = loopCount;
+      }
+      showChunk(chunkIndex);
+    }
+
+    function resetSend() {
+      clearInterval(sendTimer);
+      sendTimer = null;
+      chunks = [];
+      chunkIndex = 0;
+      loopCount = 1;
+      fileInput.value = '';
+      dropZone.style.display = '';
+      sendUI.style.display = 'none';
+      document.getElementById('loop-count').textContent = '1';
+    }
+
+    // ── RECEIVE ────────────────────────────────────────────────────
+    let recvStream = null;
+    let scanRAF = null;
+    let recvChunks = {};
+    let recvTotal = null;
+    let recvName  = '';
+    let recvBlob  = null;
+
+    const video     = document.getElementById('recv-video');
+    const recvCanvas = document.getElementById('recv-canvas');
+    const recvCtx   = recvCanvas.getContext('2d', { willReadFrequently: true });
+
+    async function startCamera() {
+      const errEl = document.getElementById('recv-error');
+      errEl.textContent = '';
+
+      if (!window.isSecureContext || !navigator.mediaDevices) {
+        errEl.innerHTML = 'Camera requires HTTPS. Serve with:<br><code>npx http-server . -S -p 8443</code><br>then open <b>https://&lt;your-ip&gt;:8443</b>';
+        return;
+      }
+
+      try {
+        recvStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } }
+        });
+        video.srcObject = recvStream;
+        await video.play();
+        document.getElementById('start-camera-btn').style.display = 'none';
+        document.getElementById('video-wrap').style.display = '';
+        document.getElementById('recv-status').style.display = '';
+        scanLoop();
+      } catch (e) {
+        errEl.textContent = 'Camera error: ' + e.message;
+      }
+    }
+
+    let lastScanTime = 0;
+
+    function scanLoop() {
+      scanRAF = requestAnimationFrame((now) => {
+        // throttle to ~10fps — jsQR is slow on large images, no need for 60fps
+        if (now - lastScanTime >= 100 && video.readyState >= 2) {
+          lastScanTime = now;
+          if (recvCanvas.width !== video.videoWidth)  recvCanvas.width  = video.videoWidth;
+          if (recvCanvas.height !== video.videoHeight) recvCanvas.height = video.videoHeight;
+          recvCtx.drawImage(video, 0, 0);
+          const img  = recvCtx.getImageData(0, 0, recvCanvas.width, recvCanvas.height);
+          const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'attemptBoth' });
+          if (code) handleCode(code.data);
+        }
+        if (recvTotal === null || Object.keys(recvChunks).length < recvTotal) {
+          scanLoop();
+        }
+      });
+    }
+
+    let flashTimer = null;
+
+    function flashScanBox() {
+      const box = document.querySelector('.scan-box');
+      if (!box) return;
+      box.classList.add('flash');
+      clearTimeout(flashTimer);
+      flashTimer = setTimeout(() => box.classList.remove('flash'), 200);
+    }
+
+    function handleCode(raw) {
+      let pkt;
+      try { pkt = JSON.parse(raw); } catch { return; }
+      if (pkt.v !== 1 || typeof pkt.i !== 'number') return;
+      flashScanBox();
+
+      if (recvTotal === null) {
+        recvTotal = pkt.t;
+        recvName  = pkt.n || 'file';
+        buildGrid(pkt.t);
+        document.getElementById('recv-status').style.display = '';
+      }
+
+      if (pkt.t !== recvTotal) return; // different file, ignore
+      if (recvChunks[pkt.i] !== undefined) return; // already have it
+
+      recvChunks[pkt.i] = pkt.d;
+      const got = Object.keys(recvChunks).length;
+      const dot = document.querySelector(`.chunk-dot[data-i="${pkt.i}"]`);
+      if (dot) dot.classList.add('got');
+
+      document.getElementById('recv-status-text').innerHTML =
+        `<strong>${got}</strong> of <strong>${recvTotal}</strong> chunks received`;
+
+      if (got === recvTotal) finishRecv();
+    }
+
+    function buildGrid(total) {
+      const grid = document.getElementById('chunks-grid');
+      grid.innerHTML = '';
+      for (let i = 0; i < total; i++) {
+        const d = document.createElement('div');
+        d.className = 'chunk-dot';
+        d.dataset.i = i;
+        grid.appendChild(d);
+      }
+    }
+
+    function finishRecv() {
+      stopCamera();
+
+      let bytes;
+      try {
+        let binary = '';
+        for (let i = 0; i < recvTotal; i++) {
+          binary += atob(recvChunks[i]);
+        }
+        bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      } catch (e) {
+        document.getElementById('recv-error').textContent = 'Reassembly failed: ' + e.message;
+        return;
+      }
+
+      recvBlob = new Blob([bytes]);
+      const url = URL.createObjectURL(recvBlob);
+
+      document.getElementById('video-wrap').style.display = 'none';
+      document.getElementById('recv-status').style.display = 'none';
+      document.getElementById('recv-done').style.display = 'block';
+      document.getElementById('recv-done-text').textContent =
+        `"${recvName}" received (${(bytes.length / 1024).toFixed(1)} KB)`;
+
+      // set href/download directly on the <a> — works on desktop and mobile
+      const btn = document.getElementById('download-btn');
+      btn.href     = url;
+      btn.download = recvName;
+    }
+
+    function stopCamera() {
+      if (scanRAF) cancelAnimationFrame(scanRAF);
+      if (recvStream) { recvStream.getTracks().forEach(t => t.stop()); recvStream = null; }
+    }
+
+    function resetRecv() {
+      recvChunks = {};
+      recvTotal  = null;
+      recvName   = '';
+      recvBlob   = null;
+      document.getElementById('recv-done').style.display = 'none';
+      document.getElementById('recv-status').style.display = 'none';
+      document.getElementById('video-wrap').style.display = 'none';
+      document.getElementById('start-camera-btn').style.display = '';
+      document.getElementById('recv-error').textContent = '';
+    }
+
+    // ── utils ──────────────────────────────────────────────────────
+    function escHtml(s) {
+      return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+  </script>
+</body>
+</html>

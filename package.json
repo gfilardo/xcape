@@ -1,0 +1,12 @@
+{
+  "name": "xcape",
+  "version": "1.0.0",
+  "description": "File transfer via QR codes — no network needed",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "qrcode-terminal": "^0.12.0",
+    "selfsigned": "^5.5.0"
+  }
+}
