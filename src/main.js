@@ -271,8 +271,10 @@ function handleCode(bytes) {
 
   recvChunks[idx] = buf.slice(6 + nameLen);
   const got = Object.keys(recvChunks).length;
+  const prev = document.querySelector('.chunk-dot.last');
+  if (prev) prev.classList.remove('last');
   const dot = document.querySelector(`.chunk-dot[data-i="${idx}"]`);
-  if (dot) dot.classList.add('got');
+  if (dot) { dot.classList.add('got'); dot.classList.add('last'); }
 
   document.getElementById('recv-status-text').innerHTML =
     `<strong>${got}</strong> of <strong>${recvTotal}</strong> chunks received`;

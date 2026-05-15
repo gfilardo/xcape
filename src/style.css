@@ -279,6 +279,7 @@ input[type=range] {
 }
 
 .chunk-dot.got { background: var(--green); }
+.chunk-dot.last { background: #f5a623; }
 
 
 #recv-done {
