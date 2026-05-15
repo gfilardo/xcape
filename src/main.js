@@ -261,7 +261,7 @@ function handleCode(raw) {
   const dot = document.querySelector(`.chunk-dot[data-i="${pkt.i}"]`);
   if (dot) dot.classList.add('got');
 
-  document.getElementById('recv-status-text').innerHTML =
+document.getElementById('recv-status-text').innerHTML =
     `<strong>${got}</strong> of <strong>${recvTotal}</strong> chunks received`;
 
   if (got === recvTotal) finishRecv();
@@ -270,6 +270,10 @@ function handleCode(raw) {
 function buildGrid(total) {
   const grid = document.getElementById('chunks-grid');
   grid.innerHTML = '';
+
+  const size = total > 500 ? 3 : total > 200 ? 4 : total > 100 ? 6 : total > 50 ? 8 : 10;
+  grid.style.setProperty('--dot-size', size + 'px');
+
   for (let i = 0; i < total; i++) {
     const d = document.createElement('div');
     d.className = 'chunk-dot';

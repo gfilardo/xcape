@@ -269,18 +269,17 @@ input[type=range] {
   flex-wrap: wrap;
   gap: 3px;
   justify-content: center;
-  max-height: 60px;
-  overflow: hidden;
 }
 
 .chunk-dot {
-  width: 10px;
-  height: 10px;
+  width: var(--dot-size, 10px);
+  height: var(--dot-size, 10px);
   border-radius: 2px;
   background: var(--border);
 }
 
 .chunk-dot.got { background: var(--green); }
+
 
 #recv-done {
   display: none;
