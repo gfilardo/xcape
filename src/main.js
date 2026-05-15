@@ -86,12 +86,9 @@ function buildChunks() {
   const chunkBytes = DENSITY[densityKey].bytes;
   chunks = [];
   for (let i = 0; i < rawBytes.length; i += chunkBytes) {
-    const slice = rawBytes.slice(i, i + chunkBytes);
-    // btoa on large arrays: convert via reduce to avoid stack overflow
-    const b64 = btoa(slice.reduce((acc, b) => acc + String.fromCharCode(b), ''));
-    chunks.push(b64);
+    chunks.push(rawBytes.slice(i, i + chunkBytes));
   }
-  if (chunks.length === 0) chunks.push('');
+  if (chunks.length === 0) chunks.push(new Uint8Array(0));
 }
 
 function setDensity(key) {
@@ -134,9 +131,20 @@ async function loadFile(file) {
 }
 
 function showChunk(idx) {
-  const pkt = { v: 1, i: idx, t: chunks.length, d: chunks[idx] };
-  if (idx === 0) pkt.n = currentFileName;
-  QRCode.toCanvas(qrCanvas, JSON.stringify(pkt), { width: 360, margin: 2, errorCorrectionLevel: DENSITY[densityKey].ec }, err => {
+  const nameBytes = idx === 0 ? new TextEncoder().encode(currentFileName) : new Uint8Array(0);
+  const fileBytes = chunks[idx];
+
+  const packet = new Uint8Array(6 + nameBytes.length + fileBytes.length);
+  const view = new DataView(packet.buffer);
+  view.setUint8(0, 1);                     // version
+  view.setUint16(1, idx, false);           // chunk index
+  view.setUint16(3, chunks.length, false); // total chunks
+  view.setUint8(5, nameBytes.length);      // filename length
+  packet.set(nameBytes, 6);
+  packet.set(fileBytes, 6 + nameBytes.length);
+
+  const latin1 = Array.from(packet, b => String.fromCharCode(b)).join('');
+  QRCode.toCanvas(qrCanvas, [{ data: latin1, mode: 'byte' }], { width: 360, margin: 2, errorCorrectionLevel: DENSITY[densityKey].ec }, err => {
     if (err) console.error('QR error', err);
   });
   document.getElementById('chunk-current').textContent = idx + 1;
@@ -221,7 +229,7 @@ function scanLoop() {
       recvCtx.drawImage(video, 0, 0);
       const img  = recvCtx.getImageData(0, 0, recvCanvas.width, recvCanvas.height);
       const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'attemptBoth' });
-      if (code) handleCode(code.data);
+      if (code) handleCode(code.binaryData);
     }
     if (recvTotal === null || Object.keys(recvChunks).length < recvTotal) {
       scanLoop();
@@ -239,29 +247,34 @@ function flashScanBox() {
   flashTimer = setTimeout(() => box.classList.remove('flash'), 200);
 }
 
-function handleCode(raw) {
-  let pkt;
-  try { pkt = JSON.parse(raw); } catch { return; }
-  if (pkt.v !== 1 || typeof pkt.i !== 'number') return;
+function handleCode(bytes) {
+  if (!bytes || bytes.length < 6) return;
+  const buf  = new Uint8Array(bytes);
+  const view = new DataView(buf.buffer);
+  if (view.getUint8(0) !== 1) return;
+
+  const idx     = view.getUint16(1, false);
+  const total   = view.getUint16(3, false);
+  const nameLen = view.getUint8(5);
+
   flashScanBox();
 
   if (recvTotal === null) {
-    recvTotal = pkt.t;
-    recvName  = pkt.n || 'file';
-    buildGrid(pkt.t);
+    recvTotal = total;
+    buildGrid(total);
     document.getElementById('recv-status').style.display = '';
   }
 
-  if (pkt.t !== recvTotal) return; // different file, ignore
-  if (pkt.n) recvName = pkt.n;     // chunk 0 may arrive late — capture name whenever it appears
-  if (recvChunks[pkt.i] !== undefined) return; // already have it
+  if (total !== recvTotal) return;
+  if (nameLen > 0) recvName = new TextDecoder().decode(buf.slice(6, 6 + nameLen));
+  if (recvChunks[idx] !== undefined) return;
 
-  recvChunks[pkt.i] = pkt.d;
+  recvChunks[idx] = buf.slice(6 + nameLen);
   const got = Object.keys(recvChunks).length;
-  const dot = document.querySelector(`.chunk-dot[data-i="${pkt.i}"]`);
+  const dot = document.querySelector(`.chunk-dot[data-i="${idx}"]`);
   if (dot) dot.classList.add('got');
 
-document.getElementById('recv-status-text').innerHTML =
+  document.getElementById('recv-status-text').innerHTML =
     `<strong>${got}</strong> of <strong>${recvTotal}</strong> chunks received`;
 
   if (got === recvTotal) finishRecv();
@@ -285,17 +298,13 @@ function buildGrid(total) {
 function finishRecv() {
   stopCamera();
 
-  let bytes;
-  try {
-    let binary = '';
-    for (let i = 0; i < recvTotal; i++) {
-      binary += atob(recvChunks[i]);
-    }
-    bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  } catch (e) {
-    document.getElementById('recv-error').textContent = 'Reassembly failed: ' + e.message;
-    return;
+  let totalSize = 0;
+  for (let i = 0; i < recvTotal; i++) totalSize += recvChunks[i].length;
+  const bytes = new Uint8Array(totalSize);
+  let offset = 0;
+  for (let i = 0; i < recvTotal; i++) {
+    bytes.set(recvChunks[i], offset);
+    offset += recvChunks[i].length;
   }
 
   recvBlob = new Blob([bytes]);

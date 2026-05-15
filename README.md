@@ -6,12 +6,30 @@ Open xcape on two devices. The sender cycles through QR codes; the receiver scan
 
 ## How it works
 
-1. The sender splits the file into base64 chunks and encodes each one as a QR code.
+1. The sender splits the file into raw binary chunks and encodes each one as a QR code.
 2. QR codes cycle automatically at a configurable speed (0.3 s – 3 s per frame).
 3. The receiver scans each QR code with its camera and tracks which chunks it has.
 4. Once all chunks are collected the file is reassembled in the browser and offered for download.
 
 No data leaves the local network. No server sees the file contents — the server only serves the static page.
+
+## Wire format
+
+Each QR code carries a compact binary packet using QR byte mode directly — no base64, no JSON:
+
+```
+[1 byte]  version (currently 1)
+[2 bytes] chunk index (uint16 big-endian)
+[2 bytes] total chunks (uint16 big-endian)
+[1 byte]  filename length in bytes (non-zero only on chunk 0)
+[N bytes] filename, UTF-8 (chunk 0 only)
+[rest]    raw file bytes
+```
+
+The fixed header is 6 bytes. The filename (up to 255 bytes, covering the max length on all major filesystems) is only transmitted once on chunk 0. All other chunks carry just the 6-byte header followed by file data.
+
+Compared to a JSON+base64 approach, this cuts per-chunk overhead from ~39% down to ~1%.
+
 
 ## Requirements
 
