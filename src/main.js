@@ -7,7 +7,7 @@ const DENSITY = {
   medium: { bytes: 500, ec: 'M' },
   high:   { bytes: 900, ec: 'L' },
 };
-let densityKey = 'low';
+let densityKey = 'medium';
 
 // ── wake lock ──────────────────────────────────────────────────
 let wakeLock = null;

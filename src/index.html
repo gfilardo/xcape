@@ -18,6 +18,15 @@
 
   <!-- ── SEND PANEL ── -->
   <div class="panel active" id="panel-send">
+    <div class="controls">
+      <label>Density</label>
+      <div class="seg">
+        <button id="den-low"               >Low &middot; 200 B</button>
+        <button id="den-medium" class="active">Med &middot; 500 B</button>
+        <button id="den-high"              >High &middot; 900 B</button>
+      </div>
+    </div>
+
     <div id="drop-zone">
       <div class="icon">📂</div>
       <p><strong>Drop a file here</strong></p>
@@ -46,15 +55,6 @@
         <label for="speed-range">Speed</label>
         <input type="range" id="speed-range" min="300" max="3000" step="100" value="1000" />
         <span class="speed-val" id="speed-val">1.0s</span>
-      </div>
-
-      <div class="controls">
-        <label>Density</label>
-        <div class="seg">
-          <button id="den-low"    class="active">Low &middot; 200 B</button>
-          <button id="den-medium"              >Med &middot; 500 B</button>
-          <button id="den-high"               >High &middot; 900 B</button>
-        </div>
       </div>
 
       <button id="reset-send-btn" class="btn btn-ghost">Choose another file</button>
