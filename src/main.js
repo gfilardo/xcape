@@ -143,8 +143,7 @@ function showChunk(idx) {
   packet.set(nameBytes, 6);
   packet.set(fileBytes, 6 + nameBytes.length);
 
-  const latin1 = Array.from(packet, b => String.fromCharCode(b)).join('');
-  QRCode.toCanvas(qrCanvas, [{ data: latin1, mode: 'byte' }], { width: 360, margin: 2, errorCorrectionLevel: DENSITY[densityKey].ec }, err => {
+  QRCode.toCanvas(qrCanvas, [{ data: packet, mode: 'byte' }], { width: 360, margin: 2, errorCorrectionLevel: DENSITY[densityKey].ec }, err => {
     if (err) console.error('QR error', err);
   });
   document.getElementById('chunk-current').textContent = idx + 1;
