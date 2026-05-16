@@ -31,6 +31,32 @@ The fixed header is 6 bytes. The filename (up to 255 bytes, covering the max len
 Compared to a JSON+base64 approach, this cuts per-chunk overhead from ~39% down to ~1%.
 
 
+## CLI
+
+xcape is also available as a command-line tool. No install needed:
+
+```sh
+npx xcape <file>
+```
+
+Or install globally:
+
+```sh
+npm install -g xcape
+xcape <file>
+```
+
+Options:
+
+```
+-d, --density <level>   low|medium|high|ultra|max  (default: low)
+-s, --speed <ms>        Cycle interval in ms        (default: 1000)
+    --scroll            Print QR codes sequentially instead of replacing
+-h, --help              Show help
+```
+
+Controls while running: `+`/`-` adjust speed, `l`/`→` and `h`/`←` navigate chunks, `p` pause, `q` quit.
+
 ## Requirements
 
 - Node.js 18+

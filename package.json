@@ -1,19 +1,33 @@
 {
   "name": "xcape",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "File transfer via QR codes — no network needed",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gfilardo/xcape.git"
+  },
+  "homepage": "https://github.com/gfilardo/xcape",
+  "bugs": "https://github.com/gfilardo/xcape/issues",
+  "bin": {
+    "xcape": "./cli.js"
+  },
+  "files": [
+    "cli.js",
+    "lib/"
+  ],
   "scripts": {
     "build": "node scripts/build.js",
-    "dev":   "node scripts/dev.js",
+    "dev": "node scripts/dev.js",
     "start": "node server.js"
   },
   "dependencies": {
-    "jsqr": "^1.4.0",
-    "qrcode": "^1.5.4",
-    "qrcode-terminal": "^0.12.0",
-    "selfsigned": "^5.5.0"
+    "minimist": "1.2.8",
+    "qrcode": "1.5.4"
   },
   "devDependencies": {
-    "esbuild": "^0.28.0"
+    "esbuild": "^0.28.0",
+    "jsqr": "^1.4.0",
+    "qrcode-terminal": "^0.12.0",
+    "selfsigned": "^5.5.0"
   }
 }
