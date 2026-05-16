@@ -2,7 +2,17 @@
 
 File transfer via QR codes — no network, no cloud, no cables.
 
-Open xcape on two devices. The sender cycles through QR codes; the receiver scans them with its camera. When the last chunk lands, the file downloads automatically.
+You need two devices: a **sender** and a **receiver**.
+
+**Sender** — pick one:
+- **CLI**: `npx xcape <file>` — displays QR codes directly in the terminal.
+- **Web**: run the web app locally (see [Setup](#setup)) or use the hosted version at [gfilardo.github.io/xcape](https://gfilardo.github.io/xcape).
+
+**Receiver** — a browser with camera access:
+- Use the hosted version at [gfilardo.github.io/xcape](https://gfilardo.github.io/xcape), or
+- Run the web app locally (see [Setup](#setup)).
+
+The receiver scans the QR codes with its camera and reassembles the file automatically. When the last chunk arrives, the file downloads.
 
 ## How it works
 
