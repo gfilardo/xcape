@@ -5,7 +5,7 @@ File transfer via QR codes — no network, no cloud, no cables.
 You need two devices: a **sender** and a **receiver**.
 
 **Sender** — pick one:
-- **CLI**: `npx xcape <file>` — displays QR codes directly in the terminal.
+- **CLI**: clone the repo and run `node cli.js <file>` — displays QR codes directly in the terminal.
 - **Web**: run the web app locally (see [Setup](#setup)) or use the hosted version at [gfilardo.github.io/xcape](https://gfilardo.github.io/xcape).
 
 **Receiver** — a browser with camera access:
@@ -43,18 +43,21 @@ Compared to a JSON+base64 approach, this cuts per-chunk overhead from ~39% down 
 
 ## CLI
 
-xcape is also available as a command-line tool. No install needed:
+xcape includes a command-line sender. Clone the repo, then:
 
 ```sh
-npx xcape <file>
+npm install
+node cli.js <file>
 ```
 
-Or install globally:
+To use it as a global `xcape` command from anywhere on your machine:
 
 ```sh
-npm install -g xcape
+npm link
 xcape <file>
 ```
+
+To unlink: `npm unlink -g xcape`.
 
 Options:
 
