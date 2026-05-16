@@ -1,12 +1,7 @@
 import QRCode from 'qrcode';
 import jsQR from 'jsqr';
+import { DENSITY, buildChunks, buildPacket } from '../lib/chunks.js';
 
-// ── constants ──────────────────────────────────────────────────
-const DENSITY = {
-  low:    { bytes: 200, ec: 'M' },
-  medium: { bytes: 500, ec: 'M' },
-  high:   { bytes: 900, ec: 'L' },
-};
 let densityKey = 'medium';
 
 // ── wake lock ──────────────────────────────────────────────────
@@ -82,13 +77,8 @@ speedRange.addEventListener('input', () => {
   if (sendTimer && !dtmfSendOn) restartTimer();
 });
 
-function buildChunks() {
-  const chunkBytes = DENSITY[densityKey].bytes;
-  chunks = [];
-  for (let i = 0; i < rawBytes.length; i += chunkBytes) {
-    chunks.push(rawBytes.slice(i, i + chunkBytes));
-  }
-  if (chunks.length === 0) chunks.push(new Uint8Array(0));
+function rebuildChunks() {
+  chunks = buildChunks(rawBytes, densityKey);
 }
 
 function setDensity(key) {
@@ -96,7 +86,7 @@ function setDensity(key) {
   ['low', 'medium', 'high'].forEach(k =>
     document.getElementById('den-' + k).classList.toggle('active', k === key));
   if (!rawBytes) return;
-  buildChunks();
+  rebuildChunks();
   chunkIndex = 0;
   fileInfoEl.innerHTML = `<strong>${escHtml(currentFileName)}</strong> &nbsp;·&nbsp; ${currentSizeStr} &nbsp;·&nbsp; ${chunks.length} chunks`;
   document.getElementById('chunk-total').textContent = chunks.length;
@@ -115,7 +105,7 @@ async function loadFile(file) {
       ? (file.size / 1024).toFixed(1) + ' KB'
       : (file.size / 1048576).toFixed(2) + ' MB';
 
-  buildChunks();
+  rebuildChunks();
 
   fileInfoEl.innerHTML = `<strong>${escHtml(file.name)}</strong> &nbsp;·&nbsp; ${currentSizeStr} &nbsp;·&nbsp; ${chunks.length} chunks`;
   document.getElementById('chunk-total').textContent = chunks.length;
@@ -131,17 +121,7 @@ async function loadFile(file) {
 }
 
 function showChunk(idx) {
-  const nameBytes = idx === 0 ? new TextEncoder().encode(currentFileName) : new Uint8Array(0);
-  const fileBytes = chunks[idx];
-
-  const packet = new Uint8Array(6 + nameBytes.length + fileBytes.length);
-  const view = new DataView(packet.buffer);
-  view.setUint8(0, 1);                     // version
-  view.setUint16(1, idx, false);           // chunk index
-  view.setUint16(3, chunks.length, false); // total chunks
-  view.setUint8(5, nameBytes.length);      // filename length
-  packet.set(nameBytes, 6);
-  packet.set(fileBytes, 6 + nameBytes.length);
+  const packet = buildPacket(currentFileName, chunks, idx);
 
   QRCode.toCanvas(qrCanvas, [{ data: packet, mode: 'byte' }], { width: 360, margin: 2, errorCorrectionLevel: DENSITY[densityKey].ec }, err => {
     if (err) console.error('QR error', err);

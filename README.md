@@ -2,7 +2,17 @@
 
 File transfer via QR codes — no network, no cloud, no cables.
 
-Open xcape on two devices. The sender cycles through QR codes; the receiver scans them with its camera. When the last chunk lands, the file downloads automatically.
+You need two devices: a **sender** and a **receiver**.
+
+**Sender** — pick one:
+- **CLI**: `npx xcape <file>` — displays QR codes directly in the terminal.
+- **Web**: run the web app locally (see [Setup](#setup)) or use the hosted version at [gfilardo.github.io/xcape](https://gfilardo.github.io/xcape).
+
+**Receiver** — a browser with camera access:
+- Use the hosted version at [gfilardo.github.io/xcape](https://gfilardo.github.io/xcape), or
+- Run the web app locally (see [Setup](#setup)).
+
+The receiver scans the QR codes with its camera and reassembles the file automatically. When the last chunk arrives, the file downloads.
 
 ## How it works
 
@@ -30,6 +40,32 @@ The fixed header is 6 bytes. The filename (up to 255 bytes, covering the max len
 
 Compared to a JSON+base64 approach, this cuts per-chunk overhead from ~39% down to ~1%.
 
+
+## CLI
+
+xcape is also available as a command-line tool. No install needed:
+
+```sh
+npx xcape <file>
+```
+
+Or install globally:
+
+```sh
+npm install -g xcape
+xcape <file>
+```
+
+Options:
+
+```
+-d, --density <level>   low|medium|high|ultra|max  (default: low)
+-s, --speed <ms>        Cycle interval in ms        (default: 1000)
+    --scroll            Print QR codes sequentially instead of replacing
+-h, --help              Show help
+```
+
+Controls while running: `+`/`-` adjust speed, `l`/`→` and `h`/`←` navigate chunks, `p` pause, `q` quit.
 
 ## Requirements
 
