@@ -92,6 +92,20 @@ The density selector controls chunk size and QR error-correction level:
 
 Lower density = smaller, more reliable QR codes. Higher density = fewer codes, faster transfer, but harder to scan at a distance or in poor light.
 
+## DTMF pacing
+
+xcape can pace the transfer using audio instead of a fixed timer, keeping sender and receiver in lockstep even at long distances or with difficult lighting.
+
+**How it works:** when both devices have DTMF enabled, the receiver plays two simultaneous tones (1400 Hz + 2800 Hz, ~100 ms) after each successfully scanned chunk. The sender listens via microphone and only advances to the next QR code when it hears that pair — no tone, no advance.
+
+If the sender misses a tone, the receiver re-emits it (at most once per 400 ms) as long as the sender stays on the same chunk, so a missed beep causes a brief pause rather than a stall.
+
+**To enable:**
+- **Sender**: toggle **DTMF** in the top bar. Auto-advance and the speed slider are disabled.
+- **Receiver**: toggle **DTMF** in the receive panel. The microphone on the sender and the speaker on the receiver must be audible to each other.
+
+The two-tone detection (both frequencies must be simultaneously above the noise floor by ≥ 18 dB, sustained for ≥ 3 consecutive frames) makes it resilient to typical room noise.
+
 ## Limitations
 
 - Practical for small-to-medium files (a few hundred KB). Larger files mean more QR codes and longer transfer times.
