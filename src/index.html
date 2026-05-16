@@ -21,10 +21,11 @@
     <div class="controls">
       <label>Density</label>
       <div class="seg">
-        <button id="den-low"               >Low &middot; 200 B</button>
-        <button id="den-medium" class="active">Med &middot; 500 B</button>
-        <button id="den-high"              >High &middot; 900 B</button>
+        <button id="den-low"               >S &middot; 200 B</button>
+        <button id="den-medium" class="active">M &middot; 500 B</button>
+        <button id="den-high"              >L &middot; 900 B</button>
       </div>
+      <button id="dtmf-send-btn" class="seg-single">DTMF</button>
     </div>
 
     <div id="drop-zone">
@@ -51,7 +52,7 @@
       </div>
       <span class="progress-hint">&#x2197; click bar to seek</span>
 
-      <div class="controls">
+      <div class="controls" id="speed-controls">
         <label for="speed-range">Speed</label>
         <input type="range" id="speed-range" min="300" max="3000" step="100" value="1000" />
         <span class="speed-val" id="speed-val">1.0s</span>
@@ -63,6 +64,11 @@
 
   <!-- ── RECEIVE PANEL ── -->
   <div class="panel" id="panel-recv">
+    <div class="recv-toolbar">
+      <button id="dtmf-recv-btn" class="seg-single">DTMF</button>
+      <button id="reset-recv-early-btn" class="icon-btn" title="Start over">&#x21BA;</button>
+    </div>
+
     <button class="btn btn-primary" id="start-camera-btn">Start Camera</button>
 
     <div id="video-wrap" style="display:none">
@@ -73,6 +79,7 @@
 
     <div id="recv-status" style="display:none">
       <p class="status-line" id="recv-status-text">Waiting for QR codes…</p>
+      <p class="status-speed" id="recv-speed"></p>
       <div id="chunks-grid"></div>
     </div>
 

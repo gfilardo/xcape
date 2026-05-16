@@ -211,6 +211,23 @@ input[type=range] {
 
 .seg button.active { background: var(--accent); color: #fff; }
 
+.seg-single {
+  padding: 0.35rem 0.75rem;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 500;
+  transition: all 0.15s;
+  min-width: 2.5rem;
+}
+
+.seg-single.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+.controls.disabled { opacity: 0.35; pointer-events: none; }
+
 /* ── RECEIVE ── */
 #video-wrap {
   position: relative;
@@ -261,8 +278,30 @@ input[type=range] {
   text-align: center;
 }
 
-#recv-status .status-line { font-size: 0.9rem; color: var(--text-dim); margin-bottom: 0.5rem; }
+#recv-status .status-line { font-size: 0.9rem; color: var(--text-dim); margin-bottom: 0.25rem; }
 #recv-status .status-line strong { color: var(--text); }
+#recv-status .status-speed { font-size: 0.8rem; color: var(--text-dim); margin-bottom: 0.75rem; }
+
+.recv-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.icon-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0.3rem 0.5rem;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.icon-btn:hover { color: var(--text); border-color: var(--text-dim); }
 
 #chunks-grid {
   display: flex;

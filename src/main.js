@@ -72,14 +72,14 @@ document.getElementById('send-progress').parentElement.addEventListener('click',
   const idx  = Math.min(chunks.length - 1, Math.floor((e.clientX - rect.left) / rect.width * chunks.length));
   chunkIndex = idx;
   showChunk(idx);
-  restartTimer();
+  if (!dtmfSendOn) restartTimer();
 });
 
 const speedRange = document.getElementById('speed-range');
 speedRange.addEventListener('input', () => {
   intervalMs = parseInt(speedRange.value);
   document.getElementById('speed-val').textContent = (intervalMs / 1000).toFixed(1) + 's';
-  if (sendTimer) restartTimer();
+  if (sendTimer && !dtmfSendOn) restartTimer();
 });
 
 function buildChunks() {
@@ -101,7 +101,7 @@ function setDensity(key) {
   fileInfoEl.innerHTML = `<strong>${escHtml(currentFileName)}</strong> &nbsp;·&nbsp; ${currentSizeStr} &nbsp;·&nbsp; ${chunks.length} chunks`;
   document.getElementById('chunk-total').textContent = chunks.length;
   showChunk(0);
-  restartTimer();
+  if (!dtmfSendOn) restartTimer();
 }
 
 async function loadFile(file) {
@@ -126,7 +126,7 @@ async function loadFile(file) {
   sendUI.style.display   = 'block';
 
   showChunk(0);
-  restartTimer();
+  if (!dtmfSendOn) restartTimer();
   acquireWakeLock();
 }
 
@@ -169,6 +169,7 @@ function resetSend() {
   clearInterval(sendTimer);
   sendTimer = null;
   releaseWakeLock();
+  if (dtmfSendOn) disableDtmfSend();
   chunks = [];
   rawBytes = null;
   chunkIndex = 0;
@@ -180,12 +181,14 @@ function resetSend() {
 }
 
 // ── RECEIVE ────────────────────────────────────────────────────
-let recvStream = null;
-let scanRAF = null;
-let recvChunks = {};
-let recvTotal = null;
-let recvName  = '';
-let recvBlob  = null;
+let recvStream    = null;
+let scanRAF       = null;
+let recvChunks    = {};
+let recvTotal     = null;
+let recvName      = '';
+let recvBlob      = null;
+let recvStartTime = null;
+let recvEndTime   = null;
 
 const video      = document.getElementById('recv-video');
 const recvCanvas = document.getElementById('recv-canvas');
@@ -272,11 +275,30 @@ function handleCode(bytes) {
   const dot = document.querySelector(`.chunk-dot[data-i="${idx}"]`);
   if (dot) dot.classList.add('last');
 
+  if (dtmfRecvOn) {
+    const now = Date.now();
+    if (now - dtmfLastEmit > DTMF_COOLDOWN_MS) {
+      dtmfLastEmit = now;
+      playDtmf();
+    }
+  }
+
   if (recvChunks[idx] !== undefined) return;
 
   recvChunks[idx] = buf.slice(6 + nameLen);
   const got = Object.keys(recvChunks).length;
   if (dot) dot.classList.add('got');
+
+  const now = Date.now();
+  if (got === 1) recvStartTime = now;
+  recvEndTime = now;
+
+  if (got > 1) {
+    let totalBytes = 0;
+    for (const k of Object.keys(recvChunks)) totalBytes += recvChunks[k].length;
+    const kbps = (totalBytes / 1024 / ((recvEndTime - recvStartTime) / 1000)).toFixed(1);
+    document.getElementById('recv-speed').textContent = `≈ ${kbps} KB/s`;
+  }
 
   document.getElementById('recv-status-text').innerHTML =
     `<strong>${got}</strong> of <strong>${recvTotal}</strong> chunks received`;
@@ -333,20 +355,146 @@ function stopCamera() {
 }
 
 function resetRecv() {
-  recvChunks = {};
-  recvTotal  = null;
-  recvName   = '';
-  recvBlob   = null;
+  stopCamera();
+  recvChunks    = {};
+  recvTotal     = null;
+  recvName      = '';
+  recvBlob      = null;
+  recvStartTime = null;
+  recvEndTime   = null;
   document.getElementById('recv-done').style.display = 'none';
   document.getElementById('recv-status').style.display = 'none';
   document.getElementById('video-wrap').style.display = 'none';
   document.getElementById('start-camera-btn').style.display = '';
+  document.getElementById('recv-speed').textContent = '';
   document.getElementById('recv-error').textContent = '';
 }
 
 // ── utils ──────────────────────────────────────────────────────
 function escHtml(s) {
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── DTMF ───────────────────────────────────────────────────────
+const DTMF_FREQS        = [1400, 2800];
+const DTMF_DURATION     = 0.1;   // seconds
+const DTMF_MIN_DB       = -50;   // dBFS floor to consider a signal
+const DTMF_SNR_DB       = 18;    // dB above noise floor required
+const DTMF_FRAMES_REQ   = 3;     // consecutive frames to confirm
+const DTMF_COOLDOWN_MS  = 400;   // silence after detection
+
+let audioCtx       = null;
+let dtmfSendOn     = false;
+let dtmfRecvOn     = false;
+let micStream      = null;
+let micAnalyser    = null;
+let micRAF         = null;
+let dtmfFrameCount  = 0;
+let dtmfCooldown    = false;
+let dtmfLastEmit    = 0;
+
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new AudioContext();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+
+function playDtmf() {
+  const ctx = getAudioCtx();
+  const now = ctx.currentTime;
+  DTMF_FREQS.forEach(freq => {
+    const osc  = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.4, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + DTMF_DURATION);
+    osc.start(now);
+    osc.stop(now + DTMF_DURATION + 0.01);
+  });
+}
+
+async function startMicListen() {
+  try {
+    micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+  } catch {
+    alert('Microphone access denied — DTMF ACK disabled');
+    disableDtmfSend();
+    return;
+  }
+  const ctx = getAudioCtx();
+  const src = ctx.createMediaStreamSource(micStream);
+  micAnalyser = ctx.createAnalyser();
+  micAnalyser.fftSize = 4096;
+  micAnalyser.smoothingTimeConstant = 0;
+  src.connect(micAnalyser);
+  dtmfFrameCount = 0;
+  dtmfCooldown   = false;
+  micListenLoop();
+}
+
+function stopMicListen() {
+  if (micRAF) { cancelAnimationFrame(micRAF); micRAF = null; }
+  if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
+  micAnalyser = null;
+}
+
+function micListenLoop() {
+  micRAF = requestAnimationFrame(() => {
+    if (!micAnalyser || !dtmfSendOn) return;
+
+    const data = new Float32Array(micAnalyser.frequencyBinCount);
+    micAnalyser.getFloatFrequencyData(data);
+
+    const sorted = Float32Array.from(data).sort();
+    const noiseFloor = sorted[Math.floor(sorted.length / 2)];
+
+    const detected = !dtmfCooldown && DTMF_FREQS.every(freq => {
+      const bin   = Math.round(freq * micAnalyser.fftSize / audioCtx.sampleRate);
+      const level = Math.max(data[bin - 1], data[bin], data[bin + 1]);
+      return level > DTMF_MIN_DB && level > noiseFloor + DTMF_SNR_DB;
+    });
+
+    if (detected) {
+      if (++dtmfFrameCount >= DTMF_FRAMES_REQ) {
+        dtmfFrameCount = 0;
+        dtmfCooldown   = true;
+        setTimeout(() => { dtmfCooldown = false; }, DTMF_COOLDOWN_MS);
+        advanceChunk();
+      }
+    } else if (!dtmfCooldown) {
+      dtmfFrameCount = 0;
+    }
+
+    micListenLoop();
+  });
+}
+
+function enableDtmfSend() {
+  dtmfSendOn = true;
+  document.getElementById('dtmf-send-btn').classList.add('active');
+  document.getElementById('speed-controls').classList.add('disabled');
+  if (sendTimer) { clearInterval(sendTimer); sendTimer = null; }
+  startMicListen();
+}
+
+function disableDtmfSend() {
+  dtmfSendOn = false;
+  document.getElementById('dtmf-send-btn').classList.remove('active');
+  document.getElementById('speed-controls').classList.remove('disabled');
+  stopMicListen();
+  if (chunks.length) restartTimer();
+}
+
+function toggleDtmfSend() {
+  if (dtmfSendOn) disableDtmfSend(); else enableDtmfSend();
+}
+
+function toggleDtmfRecv() {
+  dtmfRecvOn = !dtmfRecvOn;
+  document.getElementById('dtmf-recv-btn').classList.toggle('active', dtmfRecvOn);
+  if (dtmfRecvOn) getAudioCtx(); // warm up audio context on user gesture
 }
 
 // ── event listeners ────────────────────────────────────────────
@@ -358,3 +506,6 @@ document.getElementById('den-high').addEventListener('click',   () => setDensity
 document.getElementById('reset-send-btn').addEventListener('click', resetSend);
 document.getElementById('start-camera-btn').addEventListener('click', startCamera);
 document.getElementById('reset-recv-btn').addEventListener('click', resetRecv);
+document.getElementById('reset-recv-early-btn').addEventListener('click', resetRecv);
+document.getElementById('dtmf-send-btn').addEventListener('click', toggleDtmfSend);
+document.getElementById('dtmf-recv-btn').addEventListener('click', toggleDtmfRecv);
